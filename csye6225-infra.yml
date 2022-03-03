@@ -23,23 +23,28 @@ Metadata:
 Parameters:
   VpcCIDR:
     Default: 10.10.10.0/16
-    Description: Please enter the IP range (CIDR notation) for this VPC
+    Description: VPCCreation
     Type: String
 
   PublicSubnet1CIDR:
     Default: 10.10.1.0/24
-    Description: Please enter the IP range (CIDR notation) for the public subnet 1
+    Description: PublicSubnet1
     Type: String
 
   PublicSubnet2CIDR:
     Default: 10.10.2.0/24
-    Description: Please enter the IP range (CIDR notation) for the public subnet 2
+    Description: PublicSubnet2
     Type: String
 
   PublicSubnet3CIDR:
     Default: 10.10.3.0/24
-    Description: Please enter the IP range (CIDR notation) for the public subnet 3
+    Description: PublicSubnet3
     Type: String
+
+  AMIImage:
+    Type: String
+    Default: ami-033b95fb8079dc481
+    Description: Assignment4
 
 Resources:
 # Create VPC
@@ -143,6 +148,58 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet3
 
+#EC2 Security Group
+  applicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EC2 Security group with ports
+      GroupName: applicationSecurityGroup
+      SecurityGroupIngress: [
+          {
+            "IpProtocol" : "tcp",
+            "FromPort" : "22",
+            "ToPort" : "22",
+            "CidrIp" : "0.0.0.0/0"
+          },
+          {
+            "IpProtocol" : "tcp",
+            "FromPort" : "80",
+            "ToPort" : "80",
+            "CidrIp" : "0.0.0.0/0"
+          },
+          {
+            "IpProtocol" : "tcp",
+            "FromPort" : "443",
+            "ToPort" : "443",
+            "CidrIp" : "0.0.0.0/0"
+          },
+          {
+            "IpProtocol" : "tcp",
+            "FromPort" : "8080",
+            "ToPort" : "8080",
+            "CidrIp" : "0.0.0.0/0"
+          }
+        ]
+      Tags:
+        - Key: Name
+          Value: EC2 Security Group
+      VpcId: !Ref VPC
+
+#EC2 Instance:
+  EC2Instance:
+      Type: AWS::EC2::Instance
+      Properties:
+        ImageId: !Ref AMIImage
+        InstanceType: t2.micro
+        KeyName: GarimaChoudhary
+        NetworkInterfaces:
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          GroupSet:
+            - Ref: applicationSecurityGroup
+          SubnetId:
+            Ref: PublicSubnet1
+
 Outputs:
 # Export VPC ID
   VPC:
@@ -171,3 +228,4 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-PublicSubnet3
     Value: !Ref PublicSubnet3
+
