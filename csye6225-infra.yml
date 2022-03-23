@@ -21,7 +21,6 @@ Metadata:
           - PrivateSubnet1CIDR
           - PrivateSubnet2CIDR
           - PrivateSubnet3CIDR
-          # - RDSParameterGroup
       -
         Label:
           default: "RDS Parameter Group"
@@ -85,6 +84,10 @@ Parameters:
     Type: String
     Default: dev
     Description: Enter profile name
+  
+  DNSName:
+    Type: String
+    Default: "dev.garimachoudhary.me."
 
   DBInstanceID:
     Default: csye6225
@@ -330,39 +333,52 @@ Resources:
     Properties:
       GroupDescription: EC2 Security group with ports
       GroupName: applicationSecurityGroup
-      SecurityGroupIngress: [
-          {
-            "IpProtocol" : "tcp",
-            "FromPort" : "22",
-            "ToPort" : "22",
-            "CidrIp" : "0.0.0.0/0"
-          },
-          {
-            "IpProtocol" : "tcp",
-            "FromPort" : "80",
-            "ToPort" : "80",
-            "CidrIp" : "0.0.0.0/0"
-          },
-          {
-            "IpProtocol" : "tcp",
-            "FromPort" : "443",
-            "ToPort" : "443",
-            "CidrIp" : "0.0.0.0/0"
-          },
-          {
-            "IpProtocol" : "tcp",
-            "FromPort" : "8080",
-            "ToPort" : "8080",
-            "CidrIp" : "0.0.0.0/0"
-          }
-        ]
+      SecurityGroupIngress: 
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        SourceSecurityGroupId: !Ref loadbalancerSecuritygroup
+      - IpProtocol: tcp
+        FromPort: 8080
+        ToPort: 8080
+        SourceSecurityGroupId: !Ref loadbalancerSecuritygroup
+          # {
+          #   "IpProtocol" : "tcp",
+          #   "FromPort" : "22",
+          #   "ToPort" : "22",
+          #   # "CidrIp" : "0.0.0.0/0"
+          #   "SourceSecurityGroupId" : !Ref myloadbalancerSecuritygroup
+          # },
+          # {
+          #   "IpProtocol" : "tcp",
+          #   "FromPort" : "80",
+          #   "ToPort" : "80",
+          #   "CidrIp" : "0.0.0.0/0"
+          # },
+          # {
+          #   "IpProtocol" : "tcp",
+          #   "FromPort" : "443",
+          #   "ToPort" : "443",
+          #   "CidrIp" : "0.0.0.0/0"
+          # },
+        #   {
+        #     "IpProtocol" : "tcp",
+        #     "FromPort" : "8080",
+        #     "ToPort" : "8080",
+        #     "CidrIp" : "0.0.0.0/0"
+        #   }
+        # ]
       Tags:
         - Key: Name
-          Value: EC2 Security Group
+          Value: application
       VpcId: !Ref VPC
 
 # Create Security Group for the DataBase
   DataBaseSecurityGroup:
+    DependsOn:
+     - PrivateSubnet1
+     - PrivateSubnet2
+     - PrivateSubnet3
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
       GroupDescription: Open database for access
@@ -393,45 +409,45 @@ Resources:
        - Ref: PrivateSubnet3
 
 #EC2 Instance:
-  EC2Instance:
-      Type: AWS::EC2::Instance
-      Properties:
-        ImageId: !Ref AMIImage
-        InstanceType: t2.micro
-        KeyName: GarimaChoudhary
-        NetworkInterfaces:
-        - AssociatePublicIpAddress: "true"
-          DeviceIndex: "0"
-          GroupSet:
-            - Ref: applicationSecurityGroup
-          SubnetId:
-            Ref: PublicSubnet1
-        IamInstanceProfile: !Ref DemoInstanceProfile
-        UserData:
-          Fn::Base64:
-            Fn::Sub: |
-              #!/bin/sh
-              echo export rds="${Database.Endpoint.Address}" >> /etc/profile
-              echo export db_username="csye6225" >> /etc/profile
-              echo export db_password="Garima12345" >> /etc/profile
-              echo export bucket="${S3Bucket}" >> /etc/profile
-              echo export access_key="${AccessKey}" >> /etc/profile
-              echo export secret_key="${SecretKey}" >> /etc/profile
-              echo export dbname="csye6225" >> /etc/profile
-              echo export region="us-east-1" >> /etc/profile
-              echo Environment=\"rds=${Database.Endpoint.Address}\" >> /home/ec2-user/webapp.service
-              echo Environment=\"db_username=csye6225\" >> /home/ec2-user/webapp.service
-              echo Environment=\"db_password=Garima12345\" >> /home/ec2-user/webapp.service
-              echo Environment=\"bucket=${S3Bucket}\" >> /home/ec2-user/webapp.service
-              echo Environment=\"access_key=${AccessKey}\" >> /home/ec2-user/webapp.service
-              echo Environment=\"secret_key=${SecretKey}\" >> /home/ec2-user/webapp.service
-              echo Environment=\"region=us-east-1\" >> /home/ec2-user/webapp.service
-              echo Environment=\"dbname=csye6225\" >> /home/ec2-user/webapp.service
-              sudo cp /home/ec2-user/webapp.service /etc/systemd/system/
-              sudo systemctl daemon reload
-              sudo systemctl enable webapp.service
-              sudo systemctl start webapp.service
-              sudo systemctl status webapp.service
+  # EC2Instance:
+  #     Type: AWS::EC2::Instance
+  #     Properties:
+  #       ImageId: !Ref AMIImage
+  #       InstanceType: t2.micro
+  #       KeyName: GarimaChoudhary
+  #       NetworkInterfaces:
+  #       - AssociatePublicIpAddress: "true"
+  #         DeviceIndex: "0"
+  #         GroupSet:
+  #           - Ref: applicationSecurityGroup
+  #         SubnetId:
+  #           Ref: PublicSubnet1
+  #       IamInstanceProfile: !Ref DemoInstanceProfile
+  #       UserData:
+  #         Fn::Base64:
+  #           Fn::Sub: |
+  #             #!/bin/sh
+  #             echo export rds="${Database.Endpoint.Address}" >> /etc/profile
+  #             echo export db_username="csye6225" >> /etc/profile
+  #             echo export db_password="Garima12345" >> /etc/profile
+  #             echo export bucket="${S3Bucket}" >> /etc/profile
+  #             echo export access_key="${AccessKey}" >> /etc/profile
+  #             echo export secret_key="${SecretKey}" >> /etc/profile
+  #             echo export dbname="csye6225" >> /etc/profile
+  #             echo export region="us-east-1" >> /etc/profile
+  #             echo Environment=\"rds=${Database.Endpoint.Address}\" >> /home/ec2-user/webapp.service
+  #             echo Environment=\"db_username=csye6225\" >> /home/ec2-user/webapp.service
+  #             echo Environment=\"db_password=Garima12345\" >> /home/ec2-user/webapp.service
+  #             echo Environment=\"bucket=${S3Bucket}\" >> /home/ec2-user/webapp.service
+  #             echo Environment=\"access_key=${AccessKey}\" >> /home/ec2-user/webapp.service
+  #             echo Environment=\"secret_key=${SecretKey}\" >> /home/ec2-user/webapp.service
+  #             echo Environment=\"region=us-east-1\" >> /home/ec2-user/webapp.service
+  #             echo Environment=\"dbname=csye6225\" >> /home/ec2-user/webapp.service
+  #             sudo cp /home/ec2-user/webapp.service /etc/systemd/system/
+  #             sudo systemctl daemon reload
+  #             sudo systemctl enable webapp.service
+  #             sudo systemctl start webapp.service
+  #             sudo systemctl status webapp.service
              
 
   Database:
@@ -447,6 +463,7 @@ Resources:
       DBParameterGroupName: !Ref DBParameterGroup
       VPCSecurityGroups:
         - !GetAtt DataBaseSecurityGroup.GroupId
+        - !Ref DataBaseSecurityGroup
       Engine: MySQL
       EngineVersion: 8.0.28
       MultiAZ: false
@@ -499,9 +516,9 @@ Resources:
         Statement:
           - Effect: Allow
             Action: 
-              - 's3:Put*'
-              - 's3:Get*'
-              - 's3:Delete*'
+              - 's3:PutObject'
+              - 's3:GetObject'
+              - 's3:DeleteObject'
             Resource: 
               -  !Sub arn:aws:s3:::${S3Bucket}
               -  !Sub arn:aws:s3:::${S3Bucket}/*
@@ -533,5 +550,223 @@ Resources:
       Path: /
       Roles: 
        - !Ref RootRole
+
+  asgLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref AMIImage
+      IamInstanceProfile: !Ref DemoInstanceProfile
+      InstanceType: t2.micro
+      KeyName: GarimaChoudhary
+      # BlockDeviceMappings:
+      # - DeviceName: /dev/sda1
+      #   Ebs:
+      #     VolumeSize: 30
+      #     VolumeType: "gp3"
+      AssociatePublicIpAddress: "true"
+      SecurityGroups:
+      - !Ref applicationSecurityGroup
+    # Type: AWS::EC2::LaunchTemplate
+    # Properties:
+    #   LaunchTemplateName: !Sub '${AWS::StackName}-launch-template'
+    #   LaunchTemplateData:
+        # BlockDeviceMappings:
+        # - DeviceName: /dev/sda1
+        #   Ebs:
+        #     VolumeSize: 20
+        #     VolumeType: "gp3"
+        #     DeleteOnTermination: true
+        # ImageId: !Ref AMIImage
+        # IamInstanceProfile: !Ref DemoInstanceProfile
+        # InstanceType: t2.micro
+        # KeyName: GarimaChoudhary
+        # SecurityGroupIds:
+        #   - Ref: applicationSecuritygroup
+      UserData:
+          Fn::Base64: 
+            Fn::Sub: |
+             #!/bin/sh
+             echo export rds="${Database.Endpoint.Address}" >> /etc/profile
+             echo export db_username="csye6225" >> /etc/profile
+             echo export db_password="Garima12345" >> /etc/profile
+             echo export bucket="${S3Bucket}" >> /etc/profile
+             echo export dbname="csye6225" >> /etc/profile
+             echo export region="us-east-1" >> /etc/profile
+             echo Environment=\"rds=${Database.Endpoint.Address}\" >> /home/ec2-user/webapp.service
+             echo Environment=\"db_username=csye6225\" >> /home/ec2-user/webapp.service
+             echo Environment=\"db_password=Garima12345\" >> /home/ec2-user/webapp.service
+             echo Environment=\"bucket=${S3Bucket}\" >> /home/ec2-user/webapp.service
+             echo Environment=\"region=us-east-1\" >> /home/ec2-user/webapp.service
+             echo Environment=\"dbname=csye6225\" >> /home/ec2-user/webapp.service
+             sudo cp /home/ec2-user/webapp.service /etc/systemd/system/
+             sudo systemctl daemon reload
+             sudo systemctl enable webapp.service
+             sudo systemctl start webapp.service
+             sudo systemctl status webapp.service
+  
+  asgWebApp:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub ${AWS::StackName}-asg
+      AvailabilityZones:
+        - us-east-1a
+        - us-east-1b
+        - us-east-1c
+      Cooldown: '60'
+      DesiredCapacity: '3'
+      HealthCheckGracePeriod: 90
+      HealthCheckType: EC2
+      LaunchConfigurationName: !Ref asgLaunchConfiguration
+      # LaunchTemplate:
+      #   LaunchTemplateId: !Ref asgLaunchTemplate
+      #   Version: !GetAtt asgLaunchTemplate.LatestVersionNumber
+      # LoadBalancerNames:
+      #   - String
+      MaxSize: '5'
+      MinSize: '1'
+      Tags:
+        - Key: Application
+          Value: WebApp
+          PropagateAtLaunch: "true"
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-asg
+          PropagateAtLaunch: "true"
+      TargetGroupARNs:
+        - !Ref loadBalancerTargetGroup
+      VPCZoneIdentifier:
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
+        - Ref: PublicSubnet3
+
+  #loadbalanceSecuritygroup
+  loadbalancerSecuritygroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: loadbalancerSecuritygroup
+      GroupDescription: Allow http/https access to load balancer
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: load balancer
+  loadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
+      Name: !Sub ${AWS::StackName}-load-balancer
+      Scheme: internet-facing
+      SecurityGroups:
+        - Ref: loadbalancerSecuritygroup
+      Subnets:
+        - Ref: PublicSubnet1
+        - Ref: PublicSubnet2
+        - Ref: PublicSubnet3
+      Tags:
+        - Key: Application
+          Value: WebApp
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-load-balancer
+      Type: application
+ 
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: '1'
+      Statistic: Average
+      Threshold: '4'
+      AlarmDescription: Alarm if CPU utilization more than 4%
+      Period: '300'
+      AlarmActions:
+      - !Ref ScaleOutPolicy
+      Namespace: AWS/EC2
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref asgWebApp
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: '1'
+      Statistic: Average
+      Threshold: '2'
+      AlarmDescription: Alarm if CPU utilization is less than 2%
+      Period: '300'
+      AlarmActions:
+      - !Ref ScaleInPolicy
+      Namespace: AWS/EC2
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref asgWebApp
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization
+  ScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref asgWebApp
+      Cooldown: 60
+      ScalingAdjustment: 1
+  ScaleInPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref asgWebApp
+      Cooldown: 60
+      ScalingAdjustment: -1
+  loadBalancerTargetGroup:
+    DependsOn: loadBalancer
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 90
+      HealthCheckPath: '/healthz'
+      HealthCheckPort: 8080
+      HealthCheckProtocol: 'HTTP'
+      HealthCheckTimeoutSeconds: 60
+      HealthyThresholdCount: 2
+      IpAddressType: ipv4
+      Name: !Sub ${AWS::StackName}-lb-tg
+      Port: 8080
+      Protocol: 'HTTP'
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-lb-tg
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+      TargetType: instance
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VPC
+  loadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref loadBalancerTargetGroup
+      LoadBalancerArn: !Ref loadBalancer
+      Port: 80
+      Protocol: HTTP
+  DNSRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Ref DNSName
+      Comment: Zone apex alias targeted to LoadBalancer.
+      RecordSets:
+      - Name: !Ref DNSName
+        Type: A
+        AliasTarget:
+          HostedZoneId: !GetAtt 'loadBalancer.CanonicalHostedZoneID'
+          DNSName: !GetAtt 'loadBalancer.DNSName'
                   
 
