@@ -337,10 +337,12 @@ Resources:
       - IpProtocol: tcp
         FromPort: 22
         ToPort: 22
-        SourceSecurityGroupId: !Ref loadbalancerSecuritygroup
+        CidrIp: 0.0.0.0/0
+        # SourceSecurityGroupId: !Ref loadbalancerSecuritygroup
       - IpProtocol: tcp
         FromPort: 8080
         ToPort: 8080
+        # CidrIp: 0.0.0.0/0
         SourceSecurityGroupId: !Ref loadbalancerSecuritygroup
           # {
           #   "IpProtocol" : "tcp",
@@ -557,7 +559,7 @@ Resources:
       ImageId: !Ref AMIImage
       IamInstanceProfile: !Ref DemoInstanceProfile
       InstanceType: t2.micro
-      KeyName: GarimaChoudhary
+      KeyName: garima
       # BlockDeviceMappings:
       # - DeviceName: /dev/sda1
       #   Ebs:
