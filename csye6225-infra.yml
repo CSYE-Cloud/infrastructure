@@ -508,6 +508,23 @@ Resources:
          BlockPublicPolicy: "true"
          IgnorePublicAcls: "true"
          RestrictPublicBuckets: "true" 
+  RolePolicies:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: WebAppS3
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: 
+              - 's3:PutObject'
+              - 's3:GetObject'
+              - 's3:DeleteObject'
+            Resource: 
+              -  !Sub arn:aws:s3:::${S3Bucket}
+              -  !Sub arn:aws:s3:::${S3Bucket}/*
+      Roles:
+        - Ref: CodeDeployEC2ServiceRole 
 
   CodeDeployEC2S3:
     Type: 'AWS::IAM::Policy'
@@ -523,8 +540,10 @@ Resources:
               # - 's3:DeleteObject'
               - 's3:List*'
             Resource: 
-              -  !Sub arn:aws:s3:::${S3Bucket}
-              -  !Sub arn:aws:s3:::${S3Bucket}/*
+              -  "arn:aws:s3:::codedeploy.garimachoudhary.me"
+              -  "arn:aws:s3:::codedeploy.garimachoudhary.me/*"
+              # -  !Sub arn:aws:s3:::${S3Bucket}
+              # -  !Sub arn:aws:s3:::${S3Bucket}/*
       Roles:
         - Ref: CodeDeployEC2ServiceRole     
 
@@ -601,11 +620,11 @@ Resources:
              echo Environment=\"bucket=${S3Bucket}\" >> /home/ec2-user/webapp.service
              echo Environment=\"region=us-east-1\" >> /home/ec2-user/webapp.service
              echo Environment=\"dbname=csye6225\" >> /home/ec2-user/webapp.service
-            #  sudo cp /home/ec2-user/webapp.service /etc/systemd/system/
-            #  sudo systemctl daemon reload
-            #  sudo systemctl enable webapp.service
-            #  sudo systemctl start webapp.service
-            #  sudo systemctl status webapp.service
+             sudo cp /home/ec2-user/webapp.service /etc/systemd/system/
+             sudo systemctl daemon reload
+             sudo systemctl enable webapp.service
+             sudo systemctl start webapp.service
+             sudo systemctl status webapp.service
   
   asgWebApp:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -779,7 +798,7 @@ Resources:
       ComputePlatform: Server
       Tags:
         - Key: Name
-          Value: !Sub '${AWS::StackName}-codedeploy-application'
+          Value: !Sub ${AWS::StackName}-codedeploy-application
 
   CodeDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
@@ -795,9 +814,7 @@ Resources:
         Events:
           - DEPLOYMENT_FAILURE
       DeploymentConfigName: CodeDeployDefault.AllAtOnce
-      # LoadBalancerInfo:
-      #   TargetGroupInfoList:
-      #     - Name: loadBalancerTargetGroup
+      # LoadBalanceBalancerTargetGroup
       Ec2TagFilters:
           - Type: KEY_AND_VALUE
             Key: Name
