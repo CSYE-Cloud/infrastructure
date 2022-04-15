@@ -838,7 +838,7 @@ Resources:
             ], 
             "Resource": [ 
                 "arn:aws:s3:::codedeploy.garimachoudhary.me/*",
-                "arn:aws:s3:::codedeploy.garimachoudhary.me"
+                "arn:aws:s3:::codedeploy.garimachoudhary.me",
             ] 
           } 
         ]
@@ -956,5 +956,205 @@ Resources:
       Path: "/"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole
-      
 
+  CloudWatchAgentServerPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: Cloud-WatchAgent-ServerPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: 
+              - 'cloudwatch:PutMetricData'
+              - 'ec2:DescribeTags'
+              - 'logs:DescribeLogGroups'
+              - 'logs:CreateLogGroup'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+              - 'logs:DescribeLogStreams'
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - 'ssm:GetParameter'
+              - 'ssm:PutParameter'
+            Resource: "arn:aws:ssm:*:*:parameter/AmazonCloudWatch-*"
+      Roles:
+        - Ref: CodeDeployEC2ServiceRole  
+
+  LoggingGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: csye6225
+      RetentionInDays: 7
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: "SNSTopic" 
+      DisplayName: "SNSTopic"
+      Subscription:
+        - Endpoint: !GetAtt LambdaFunction.Arn
+          Protocol: lambda
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - LambdaExecutionRole
+    Properties:
+      FunctionName: "Email"
+      MemorySize: 512
+      Handler: "com.cloud.serverless.serverless.Email::handleRequest"
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: codedeploy.garimachoudhary.me
+        S3Key: "serverless-1.0.0.jar"
+      Runtime: "java11"
+      Timeout: 59
+
+  PermissionSNStoLambda:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopic
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+#      ManagedPolicyArns:
+#        - arn:aws:iam::aws:policy/AmazonSESFullAccess
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonSESFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaRole"
+
+  LambdaPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: LambdaCloudWatchPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:PutLogEvents
+              - logs:GetLogEvents
+              - logs:CreateLogStream
+            Resource:
+              - arn:aws:logs:us-east-1:136205724330:*
+          - Effect: Allow
+            Action:
+              - ses:SendEmail
+              - ses:SendRawEmail
+            Resource:
+              - "arn:aws:ses:us-east-1:136205724330:identity/demo.garimachoudhary.me"
+      Roles:
+        - !Ref LambdaExecutionRole
+
+  DynamoDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions: 
+          - 
+            AttributeName: "emailID"
+            AttributeType: "S"
+          # - 
+            # AttributeName: "Token"
+            # AttributeType: "S"
+      KeySchema: 
+          -
+            AttributeName : "emailID"
+            KeyType : "HASH"
+          # -
+            # AttributeName : "Token"
+            # KeyType : "RANGE"
+      TableName: "AccountDetails"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TimeToLiveSpecification:
+        AttributeName: "TimeToLive"
+        Enabled: true
+
+  DynamoDB2:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions: 
+          - 
+            AttributeName: "emailID"
+            AttributeType: "S"
+      KeySchema: 
+          -
+            AttributeName : "emailID"
+            KeyType : "HASH"
+      TableName: "AccountEmail"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TimeToLiveSpecification:
+        AttributeName: "TimeToLive"
+        Enabled: false
+  
+  DynamoDBPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: DynamoDBPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:PutItem
+              - dynamodb:GetItem
+            Resource:
+              - !GetAtt DynamoDB.Arn
+      Roles:
+        - !Ref CodeDeployEC2ServiceRole
+
+  EC2SNSPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: EC2SNSPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sns:Publish
+              - sns:GetTopicAttributes
+              - sns:ListTopics
+              - sns:*
+            Resource:
+              - "*"
+      Roles:
+        - !Ref CodeDeployEC2ServiceRole
+      
+  LambdaUpdate:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'lambda:UpdateFunctionCode'
+            Resource:
+              - 'arn:aws:lambda:us-east-1:136205724330:function:Email'
+      PolicyName: Github-Lambda-Updates
+      Users:
+        - ghactions-app
