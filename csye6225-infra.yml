@@ -400,6 +400,11 @@ Resources:
     Properties:
       Description: MySQL Parameter Group
       Family: mysql8.0
+      Parameters:
+        performance_schema: 1
+      Tags:
+        - Key: "Name"
+          Value: "DBParameterGroup"
 #
   RDSDBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
