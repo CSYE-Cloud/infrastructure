@@ -645,14 +645,15 @@ Resources:
               DeleteOnTermination: true
             DeviceName: /dev/xvda
         InstanceType: t2.micro
-        IamInstanceProfile: !Ref DemoInstanceProfile
+        IamInstanceProfile:
+          Arn: !GetAtt [DemoInstanceProfile, Arn]
         KeyName: garima
         ImageId: !Ref AMIImage
         NetworkInterfaces:
           - DeviceIndex: 0
             AssociatePublicIpAddress: true
             Groups: 
-              - !Ref applicationSecuritygroup
+              - !Ref applicationSecurityGroup
 
       # SecurityGroups:
       # - !Ref myapplicationSecuritygroup     
@@ -1292,13 +1293,13 @@ Resources:
           - Sid: Enable IAM User Permissions
             Effect: Allow
             Principal:
-              AWS: 'arn:aws:iam::771822191110:root'
+              AWS: 'arn:aws:iam::136205724330:root'
             Action: 'kms:*'
             Resource: '*'
           - Sid: Allow administration of the key
             Effect: Allow
             Principal:
-              AWS: 'arn:aws:iam::771822191110:root'
+              AWS: 'arn:aws:iam::136205724330:root'
             Action:
               - 'kms:Create*'
               - 'kms:Describe*'
@@ -1316,7 +1317,7 @@ Resources:
           - Sid: Allow use of the key
             Effect: Allow
             Principal:
-              AWS: 'arn:aws:iam::771822191110:root'
+              AWS: 'arn:aws:iam::136205724330:root'
             Action:
               - 'kms:DescribeKey'
               - 'kms:Encrypt'
