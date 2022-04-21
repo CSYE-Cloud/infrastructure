@@ -463,6 +463,8 @@ Resources:
       MasterUserPassword: !Ref DBPassword
       DBSubnetGroupName: !Ref RDSDBSubnetGroup
       DBParameterGroupName: !Ref DBParameterGroup
+      StorageEncrypted: true
+      KmsKeyId: !Ref myRDSKey
       VPCSecurityGroups:
         - !GetAtt DataBaseSecurityGroup.GroupId
         - !Ref DataBaseSecurityGroup
@@ -573,38 +575,89 @@ Resources:
       Roles: 
        - !Ref CodeDeployEC2ServiceRole
 
-  asgLaunchConfiguration:
-    Type: AWS::AutoScaling::LaunchConfiguration
+  # asgLaunchConfiguration:
+  #   Type: AWS::AutoScaling::LaunchConfiguration
+  #   Properties:
+  #     ImageId: !Ref AMIImage
+  #     IamInstanceProfile: !Ref DemoInstanceProfile
+  #     InstanceType: t2.micro
+  #     KeyName: garima
+  #     BlockDeviceMappings:
+  #     - DeviceName: /dev/sda1
+  #       Ebs:
+  #         VolumeSize: 30
+  #         VolumeType: "gp3"
+  #         Encrypted: true
+  #         KmsKeyId: !GetAtt EBSKey.Arn
+  #     AssociatePublicIpAddress: "true"
+  #     SecurityGroups:
+  #     - !Ref applicationSecurityGroup
+  #   # Type: AWS::EC2::LaunchTemplate
+  #   # Properties:
+  #   #   LaunchTemplateName: !Sub '${AWS::StackName}-launch-template'
+  #   #   LaunchTemplateData:
+  #       # BlockDeviceMappings:
+  #       # - DeviceName: /dev/sda1
+  #       #   Ebs:
+  #       #     VolumeSize: 20
+  #       #     VolumeType: "gp3"
+  #       #     DeleteOnTermination: true
+  #       # ImageId: !Ref AMIImage
+  #       # IamInstanceProfile: !Ref DemoInstanceProfile
+  #       # InstanceType: t2.micro
+  #       # KeyName: garima
+  #       # SecurityGroupIds:
+  #       #   - Ref: applicationSecuritygroup
+  #     UserData:
+  #         Fn::Base64: 
+  #           Fn::Sub: |
+  #            #!/bin/sh
+  #            echo export rds="${Database.Endpoint.Address}" >> /etc/profile
+  #            echo export db_username="csye6225" >> /etc/profile
+  #            echo export db_password="Garima12345" >> /etc/profile
+  #            echo export bucket="${S3Bucket}" >> /etc/profile
+  #            echo export dbname="csye6225" >> /etc/profile
+  #            echo export region="us-east-1" >> /etc/profile
+  #            echo Environment=\"rds=${Database.Endpoint.Address}\" >> /home/ec2-user/webapp.service
+  #            echo Environment=\"db_username=csye6225\" >> /home/ec2-user/webapp.service
+  #            echo Environment=\"db_password=Garima12345\" >> /home/ec2-user/webapp.service
+  #            echo Environment=\"bucket=${S3Bucket}\" >> /home/ec2-user/webapp.service
+  #            echo Environment=\"region=us-east-1\" >> /home/ec2-user/webapp.service
+  #            echo Environment=\"dbname=csye6225\" >> /home/ec2-user/webapp.service
+  #            sudo cp /home/ec2-user/webapp.service /etc/systemd/system/
+  #            sudo systemctl daemon reload
+  #            sudo systemctl enable webapp.service
+  #            sudo systemctl start webapp.service
+  #            sudo systemctl status webapp.service
+
+  asgLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     Properties:
-      ImageId: !Ref AMIImage
-      IamInstanceProfile: !Ref DemoInstanceProfile
-      InstanceType: t2.micro
-      KeyName: garima
-      # BlockDeviceMappings:
-      # - DeviceName: /dev/sda1
-      #   Ebs:
-      #     VolumeSize: 30
-      #     VolumeType: "gp3"
-      AssociatePublicIpAddress: "true"
-      SecurityGroups:
-      - !Ref applicationSecurityGroup
-    # Type: AWS::EC2::LaunchTemplate
-    # Properties:
-    #   LaunchTemplateName: !Sub '${AWS::StackName}-launch-template'
-    #   LaunchTemplateData:
-        # BlockDeviceMappings:
-        # - DeviceName: /dev/sda1
-        #   Ebs:
-        #     VolumeSize: 20
-        #     VolumeType: "gp3"
-        #     DeleteOnTermination: true
-        # ImageId: !Ref AMIImage
-        # IamInstanceProfile: !Ref DemoInstanceProfile
-        # InstanceType: t2.micro
-        # KeyName: garima
-        # SecurityGroupIds:
-        #   - Ref: applicationSecuritygroup
-      UserData:
+      LaunchTemplateName: !Sub '${AWS::StackName}-EC2-instance'
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - Ebs:
+              VolumeSize: 20
+              VolumeType: gp2
+              DeleteOnTermination: true
+              Encrypted: true
+              KmsKeyId: !Ref EBSVolumeKey
+              DeleteOnTermination: true
+            DeviceName: /dev/xvda
+        InstanceType: t2.micro
+        IamInstanceProfile:
+          Arn: !GetAtt [DemoInstanceProfile, Arn]
+        KeyName: garima
+        ImageId: !Ref AMIImage
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            AssociatePublicIpAddress: true
+            Groups: 
+              - !Ref applicationSecurityGroup
+
+      # SecurityGroups:
+      # - !Ref myapplicationSecuritygroup     
+        UserData:
           Fn::Base64: 
             Fn::Sub: |
              #!/bin/sh
@@ -638,10 +691,10 @@ Resources:
       DesiredCapacity: '3'
       HealthCheckGracePeriod: 90
       HealthCheckType: EC2
-      LaunchConfigurationName: !Ref asgLaunchConfiguration
-      # LaunchTemplate:
-      #   LaunchTemplateId: !Ref asgLaunchTemplate
-      #   Version: !GetAtt asgLaunchTemplate.LatestVersionNumber
+      # LaunchConfigurationName: !Ref asgLaunchConfiguration
+      LaunchTemplate:
+        LaunchTemplateId: !Ref asgLaunchTemplate
+        Version: !GetAtt asgLaunchTemplate.LatestVersionNumber
       # LoadBalancerNames:
       #   - String
       MaxSize: '5'
@@ -773,12 +826,15 @@ Resources:
   loadBalancerListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
+      Certificates:
+        - CertificateArn: "arn:aws:acm:us-east-1:136205724330:certificate/2e887623-20dc-4002-b13b-921400643a75"
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref loadBalancerTargetGroup
       LoadBalancerArn: !Ref loadBalancer
-      Port: 80
-      Protocol: HTTP
+      # Port: 80
+      Port: 443
+      Protocol: HTTPS
   DNSRecord:
     Type: AWS::Route53::RecordSetGroup
     Properties:
@@ -1138,7 +1194,8 @@ Resources:
               - sns:Publish
               - sns:GetTopicAttributes
               - sns:ListTopics
-              - sns:*
+              - sns:CreateTopic
+              # - sns:*    
             Resource:
               - "*"
       Roles:
@@ -1158,3 +1215,114 @@ Resources:
       PolicyName: Github-Lambda-Updates
       Users:
         - ghactions-app
+
+  myEBSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/ebsKey
+      TargetKeyId:
+        Ref: EBSVolumeKey
+
+  EBSVolumeKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: An example symmetric KMS key
+      EnableKeyRotation: true
+      PendingWindowInDays: 20
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: sym-ebs-key
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: 
+                - !Sub arn:aws:iam::136205724330:root
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow administration of the key
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::136205724330:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+            Action:
+              - 'kms:Create*'
+              - 'kms:Describe*'
+              - 'kms:Enable*'
+              - 'kms:List*'
+              - 'kms:Put*'
+              - 'kms:Update*'
+              - 'kms:Revoke*'
+              - 'kms:Disable*'
+              - 'kms:Get*'
+              - 'kms:Delete*'
+              - 'kms:ScheduleKeyDeletion'
+              - 'kms:CancelKeyDeletion'
+            Resource: '*'
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:aws:iam::136205724330:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+            Action:
+              - 'kms:DescribeKey'
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey'
+              - 'kms:GenerateDataKeyWithoutPlaintext'
+            Resource: '*'
+            
+  myRDSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/rdsKey
+      TargetKeyId:
+        Ref: myRDSKey
+
+  myRDSKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: An example symmetric KMS key
+      EnableKeyRotation: true
+      PendingWindowInDays: 20
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: sym-ebs-key
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: 'arn:aws:iam::136205724330:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow administration of the key
+            Effect: Allow
+            Principal:
+              AWS: 'arn:aws:iam::136205724330:root'
+            Action:
+              - 'kms:Create*'
+              - 'kms:Describe*'
+              - 'kms:Enable*'
+              - 'kms:List*'
+              - 'kms:Put*'
+              - 'kms:Update*'
+              - 'kms:Revoke*'
+              - 'kms:Disable*'
+              - 'kms:Get*'
+              - 'kms:Delete*'
+              - 'kms:ScheduleKeyDeletion'
+              - 'kms:CancelKeyDeletion'
+            Resource: '*'
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              AWS: 'arn:aws:iam::136205724330:root'
+            Action:
+              - 'kms:DescribeKey'
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey'
+              - 'kms:GenerateDataKeyWithoutPlaintext'
+            Resource: '*'
