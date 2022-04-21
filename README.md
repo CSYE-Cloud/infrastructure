@@ -61,4 +61,4 @@ To set a default profile in your local machine.
 - aws cloudformation delete-stack --stack-name <stack_name>
 
 **Command to import the stack through aws cli**
-- aws acm import-certificate --certificate <<certificate_name>> --certificate-chain <<bundle-name>> --private-key <<Private-key filename>> --profile=demo
+- aws acm import-certificate --certificate <certificate_name> --certificate-chain <bundle_name> --private-key <Private_key_filename> --profile=demo
